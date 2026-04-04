@@ -89,8 +89,9 @@ const convertCommand = defineCommand({
       const size = formatSize(result.buffer.length);
       const msg = pc.green(`✓ Saved to ${outputPath} (${result.width}x${result.height}, ${size})\n`);
       await Bun.write(Bun.stdout, msg);
-    } catch (err: any) {
-      await Bun.write(Bun.stderr, pc.red(`Error: ${err.message}\n`));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      await Bun.write(Bun.stderr, pc.red(`Error: ${message}\n`));
       process.exit(1);
     }
   },

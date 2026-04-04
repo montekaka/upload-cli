@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { convert } from "../src/processor";
+import { convert, type Format } from "../src/processor";
 
 const FIXTURES = "test/fixtures";
 
@@ -99,7 +99,7 @@ describe("convert", () => {
   test("rejects unsupported output format", async () => {
     const input = await readFixture("sample.png");
     await expect(
-      convert(input, { format: "bmp" as any })
+      convert(input, { format: "bmp" as unknown as Format })
     ).rejects.toThrow("Unsupported output format: bmp");
   });
 

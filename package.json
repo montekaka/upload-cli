@@ -5,8 +5,14 @@
   "bin": {
     "upload-cli": "src/index.ts"
   },
+  "scripts": {
+    "lint": "eslint ."
+  },
   "devDependencies": {
-    "@types/bun": "^1.3.11"
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.3.11",
+    "eslint": "^10.2.0",
+    "typescript-eslint": "^8.58.0"
   },
   "peerDependencies": {
     "typescript": "^5"
