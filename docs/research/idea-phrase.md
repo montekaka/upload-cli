@@ -1,0 +1,1 @@
+I want to build a CLI tool for user can convert photo to different format, such as from png to jpeg, png to webp, we also want to allow user to resize the photo too.
