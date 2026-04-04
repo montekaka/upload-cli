@@ -100,6 +100,34 @@ describe("CLI convert", () => {
     expect(stderr).toContain("File not found");
   });
 
+  test("resizes with --width flag and shows new dimensions", async () => {
+    const input = await copyFixture("landscape.png");
+    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--width", "50");
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("50x25");
+    expect(stdout).toContain("Saved to");
+  });
+
+  test("resizes with --height flag", async () => {
+    const input = await copyFixture("landscape.png");
+    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--height", "25");
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("50x25");
+  });
+
+  test("resizes with --width and --height and --fit flag", async () => {
+    const input = await copyFixture("landscape.png");
+    const { exitCode, stdout } = await run("convert", input, "--to", "webp", "--width", "40", "--height", "40", "--fit", "fill");
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("40x40");
+
+    const outputPath = path.join(TMP, "landscape.webp");
+    expect(await Bun.file(outputPath).exists()).toBe(true);
+  });
+
   test("errors on unsupported input format", async () => {
     await ensureTmp();
     const gifPath = path.join(TMP, "fake.gif");
