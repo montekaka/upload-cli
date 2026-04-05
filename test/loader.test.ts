@@ -24,7 +24,7 @@ describe("loadImage — remote (injected fetcher)", () => {
   });
 
   test("returns kind=remote with buffer and basename extracted from URL path", async () => {
-    const fakeFetch = async (_url: string) => makeResponse(TINY_IMAGE);
+    const fakeFetch = async () => makeResponse(TINY_IMAGE);
 
     const result = await loadImage("https://example.com/photos/sunset.png", fakeFetch);
 
@@ -35,7 +35,7 @@ describe("loadImage — remote (injected fetcher)", () => {
   });
 
   test("throws 'Failed to download' when fetcher throws a network error", async () => {
-    const fakeFetch = async (_url: string): Promise<Response> => {
+    const fakeFetch = async (): Promise<Response> => {
       throw new Error("network unavailable");
     };
 
@@ -45,7 +45,7 @@ describe("loadImage — remote (injected fetcher)", () => {
   });
 
   test("throws with HTTP status when fetcher returns a non-OK response", async () => {
-    const fakeFetch = async (_url: string) => makeResponse(TINY_IMAGE, 403);
+    const fakeFetch = async () => makeResponse(TINY_IMAGE, 403);
 
     await expect(loadImage("https://example.com/photo.png", fakeFetch)).rejects.toThrow(
       "HTTP 403"
@@ -54,7 +54,7 @@ describe("loadImage — remote (injected fetcher)", () => {
 
   test("throws size limit error when content-length header exceeds 50MB", async () => {
     const oversize = 51 * 1024 * 1024;
-    const fakeFetch = async (_url: string) =>
+    const fakeFetch = async () =>
       makeResponse(TINY_IMAGE, 200, { "content-length": String(oversize) });
 
     await expect(loadImage("https://example.com/big.jpg", fakeFetch)).rejects.toThrow("50MB");
@@ -62,7 +62,7 @@ describe("loadImage — remote (injected fetcher)", () => {
 
   test("throws size limit error when response body exceeds 50MB (no content-length)", async () => {
     const oversizeBody = new ArrayBuffer(51 * 1024 * 1024);
-    const fakeFetch = async (_url: string) => makeResponse(oversizeBody);
+    const fakeFetch = async () => makeResponse(oversizeBody);
 
     await expect(loadImage("https://example.com/big.jpg", fakeFetch)).rejects.toThrow("50MB");
   });
