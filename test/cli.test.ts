@@ -1,6 +1,7 @@
 import { test, expect, describe, afterEach } from "bun:test";
 import fs from "fs/promises";
 import path from "path";
+import net from "net";
 
 const CLI = path.resolve("src/index.ts");
 const FIXTURES = path.resolve("test/fixtures");
@@ -34,7 +35,37 @@ async function run(...args: string[]) {
   return { exitCode, stdout, stderr };
 }
 
-afterEach(cleanTmp);
+let server: ReturnType<typeof Bun.serve> | null = null;
+
+function startFixtureServer() {
+  server = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      const url = new URL(req.url);
+
+      if (url.pathname === "/404") {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const fixtureName = url.pathname.slice(1); // strip leading /
+      const fixturePath = path.join(FIXTURES, fixtureName);
+      const file = Bun.file(fixturePath);
+      if (await file.exists()) {
+        return new Response(file);
+      }
+      return new Response("Not found", { status: 404 });
+    },
+  });
+  return server;
+}
+
+afterEach(async () => {
+  await cleanTmp();
+  if (server) {
+    server.stop();
+    server = null;
+  }
+});
 
 describe("CLI convert", () => {
   test("converts PNG to WebP and creates output file", async () => {
@@ -191,7 +222,7 @@ describe("CLI convert", () => {
     expect(stderr).toContain("Unsupported fit mode");
   });
 
-  test("errors on unsupported input format", async () => {
+  test("errors on unsupported input format (local)", async () => {
     await ensureTmp();
     const gifPath = path.join(TMP, "fake.gif");
     await Bun.write(gifPath, "fake gif data");
@@ -200,5 +231,65 @@ describe("CLI convert", () => {
 
     expect(exitCode).toBe(1);
     expect(stderr).toContain("Unsupported input format");
+  });
+});
+
+describe("CLI convert (remote URL)", () => {
+  test("converts a remote image URL to target format", async () => {
+    await ensureTmp();
+    const srv = startFixtureServer();
+    const url = `http://localhost:${srv.port}/sample.png`;
+
+    const { exitCode, stdout } = await run("convert", url, "--to", "webp");
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Saved to");
+    expect(stdout).toContain("sample.webp");
+
+    const outputPath = path.join(TMP, "sample.webp");
+    expect(await Bun.file(outputPath).exists()).toBe(true);
+  });
+
+  test("rejects downloads exceeding 50MB", async () => {
+    await ensureTmp();
+    // Use raw TCP server to send a Content-Length header that Bun won't override
+    const tcpServer = net.createServer((socket) => {
+      const size = 51 * 1024 * 1024;
+      socket.write(`HTTP/1.1 200 OK\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n`);
+      socket.end("x");
+    });
+    await new Promise<void>((resolve) => tcpServer.listen(0, resolve));
+    const tcpPort = (tcpServer.address() as net.AddressInfo).port;
+
+    const url = `http://localhost:${tcpPort}/oversized.jpg`;
+    const { exitCode, stderr } = await run("convert", url, "--to", "webp");
+
+    tcpServer.close();
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("50MB");
+  });
+
+  test("errors on network failure with clear message", async () => {
+    await ensureTmp();
+    const url = "http://localhost:19999/nonexistent.png";
+
+    const { exitCode, stderr } = await run("convert", url, "--to", "webp");
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Failed to download");
+  });
+
+  test("--output flag works with remote URLs", async () => {
+    await ensureTmp();
+    const srv = startFixtureServer();
+    const url = `http://localhost:${srv.port}/sample.png`;
+    const outputPath = path.join(TMP, "custom-remote.webp");
+
+    const { exitCode, stdout } = await run("convert", url, "--to", "webp", "--output", outputPath);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("custom-remote.webp");
+    expect(await Bun.file(outputPath).exists()).toBe(true);
   });
 });
