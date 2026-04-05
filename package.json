@@ -1,12 +1,18 @@
 {
   "name": "upload-cli",
+  "version": "0.1.0",
+  "description": "Fast CLI tool for image format conversion and resizing",
   "module": "src/index.ts",
   "type": "module",
   "bin": {
     "upload-cli": "src/index.ts"
   },
+  "files": [
+    "src/"
+  ],
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "compile": "bun build --compile src/index.ts --outfile dist/upload-cli"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

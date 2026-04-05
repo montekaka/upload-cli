@@ -1,4 +1,4 @@
-import { Jimp } from "./jimp";
+import { Jimp, ensureWebPReady } from "./jimp";
 
 export type Format = "png" | "jpeg" | "webp";
 
@@ -34,6 +34,7 @@ export async function convert(
   if (!mime) {
     throw new Error(`Unsupported output format: ${options.format}`);
   }
+  await ensureWebPReady();
   const image = await Jimp.fromBuffer(input);
 
   if (options.width && !options.height) {
