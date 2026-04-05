@@ -4,10 +4,11 @@
 
 ```
 src/
-├── index.ts       — CLI entry point, command definitions, input validation, output handling
-├── loader.ts      — Unified image loading (local files + remote URLs, with injectable fetch)
-├── processor.ts   — Pure image conversion/resize logic
-└── jimp.ts        — Jimp singleton (formats: JPEG, PNG, WebP + resize plugin)
+├── index.ts        — CLI entry point, command definitions, input validation, output handling
+├── loader.ts       — Unified image loading (local files + remote URLs, with injectable fetch)
+├── processor.ts    — Pure image conversion/resize logic (buffer in, buffer out)
+├── output-path.ts  — Output file path resolution (--output flag, remote vs local defaults)
+└── jimp.ts         — Jimp singleton + custom WebP plugin backed by @jsquash/webp WASM
 ```
 
 ## Key Interfaces
@@ -26,11 +27,18 @@ src/
 - **`Fit`** = `"contain" | "cover" | "fill"`
 - **`ConvertOptions`** — `{ format, quality?, width?, height?, fit? }`
 - **`ConvertResult`** — `{ buffer, width, height }`
-- **`convert(input: Buffer, options: ConvertOptions): Promise<ConvertResult>`** — the main processing function
+- **`convert(input: Buffer, options: ConvertOptions): Promise<ConvertResult>`** — the main processing function. Validates dimensions (rejects zero or negative values), applies resize, encodes to the target format. Quality is ignored for PNG (lossless).
+
+### output-path.ts — output path resolution
+
+- **`resolveOutputPath(image: LoadResult, format: Format, options?: { output?: string; cwd?: string }): string`** — determines where to write the output file:
+  - `--output` provided → resolves it relative to `cwd` (or `process.cwd()`)
+  - local image, no `--output` → writes next to the source file with a new extension
+  - remote image, no `--output` → writes into `cwd` using the URL's basename
 
 ### jimp.ts
 
-Exports a configured `Jimp` class (JPEG, PNG, WebP formats + resize)
+Exports a configured `Jimp` class (JPEG, PNG formats + resize plugin) and a custom WebP plugin backed by `@jsquash/webp`. WebP WASM binaries are embedded at compile time via Bun's `with { type: "file" }` import assertions and pre-initialised once via `ensureWebPReady()` — this bypasses Emscripten's `locateFile` path resolution which fails inside a standalone binary.
 
 ## CLI Command
 
@@ -39,9 +47,11 @@ Single subcommand: `upload-cli convert <input> --to <format>` with optional flag
 ## Data Flow
 
 ```
-CLI input → validate args → load image (local file or remote URL)
-  → convert(buffer, options) → resize if needed → encode to target format
+CLI input → validate args (format, quality, dimensions, fit)
+  → loadImage()  → local file read  OR  remote download + 50MB guard
+  → convert(buffer, options) → validate dimensions → resize if needed → encode to target format
+  → resolveOutputPath() → check for existing file (--force to overwrite)
   → write output file → print success message
 ```
 
-The architecture cleanly separates concerns: `index.ts` handles CLI/IO, `loader.ts` unifies image loading from any source behind a single function (hiding URL detection, download, and validation internally), and `processor.ts` is a pure buffer-in/buffer-out converter.
+The architecture cleanly separates concerns: `index.ts` handles CLI/IO and arg validation, `loader.ts` unifies image loading from any source behind a single function, `processor.ts` is a pure buffer-in/buffer-out converter, and `output-path.ts` isolates the output path logic behind a single deterministic function.

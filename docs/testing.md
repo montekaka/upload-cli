@@ -4,9 +4,11 @@
 
 ```
 test/
-├── processor.test.ts   — Unit tests for convert() function (19 tests)
+├── processor.test.ts   — Unit tests for convert() function (22 tests)
 ├── loader.test.ts      — Boundary tests for loadImage() — local and remote (9 tests)
-├── cli.test.ts         — Integration tests via CLI subprocess (18 tests)
+├── output-path.test.ts — Unit tests for resolveOutputPath() (5 tests)
+├── cli.test.ts         — Integration tests via CLI subprocess (20 tests)
+├── binary.test.ts      — Smoke tests against the compiled standalone binary (5 tests)
 ├── create-fixtures.ts  — Script to generate test images
 └── fixtures/
     ├── sample.png      — 4x4 red image
@@ -23,6 +25,11 @@ test/
 - Use magic byte checks (`expectPng`, `expectJpeg`, `expectWebp`) to verify output format
 - `readFixture(name)` helper loads fixture files
 
+### Unit tests (`output-path.test.ts`)
+
+- Call `resolveOutputPath()` directly with synthetic `LoadResult` values — no real filesystem access
+- Covers: local saves next to source, remote saves in cwd, `--output` override, `.jpg` extension for `jpeg` format
+
 ### Boundary tests (`loader.test.ts`)
 
 - Test `loadImage()` through its public interface only — no access to internal helpers
@@ -38,11 +45,19 @@ test/
 - Local HTTP server (`Bun.serve`) for remote URL tests; raw TCP server for 50MB limit test
 - Server is stopped in `afterEach`
 
+### Binary smoke tests (`binary.test.ts`)
+
+- Run `dist/upload-cli` (the compiled standalone binary) as a subprocess
+- `beforeAll` compiles the binary once via `bun run compile` before any test runs
+- Uses a separate `test/tmp-binary/` directory, cleaned up in `afterEach`
+- Covers help output, a core conversion, a resize, and an error case — confirms the binary works end-to-end with embedded WASM assets
+
 ## Test Categories
 
-- Format conversion (all 6 pairwise combinations)
+- Format conversion (all 6 pairwise combinations: PNG↔JPEG, PNG↔WebP, JPEG↔WebP)
 - Resize (width-only, height-only, both + all 3 fit modes)
-- Quality (JPEG, WebP affected; PNG ignored; default 80)
-- Error handling (bad format, missing file, invalid dimensions, invalid fit)
-- Output path (`--output` flag, file conflict, `--force`)
-- Remote URLs (success, 50MB limit, network failure, `--output` with remote)
+- Quality (JPEG and WebP affected; PNG ignored; default 80)
+- Error handling (bad format, missing file, invalid/negative dimensions, invalid fit)
+- Output path (`--output` flag, local vs remote defaults, `.jpg` extension for `jpeg`, file conflict, `--force`)
+- Remote URLs (success, 50MB limit via header and body, network failure, `--output` with remote)
+- Standalone binary (help, convert, resize, error — verifies embedded WASM works outside dev environment)
