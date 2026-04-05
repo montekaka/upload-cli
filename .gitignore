@@ -4,3 +4,5 @@
 node_modules
 test/tmp
 bun.lock
+dist/
+test/tmp-binary
