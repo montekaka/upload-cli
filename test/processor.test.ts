@@ -23,6 +23,74 @@ function expectWebp(buf: Buffer) {
   expect(buf.toString("ascii", 8, 12)).toBe("WEBP");
 }
 
+async function readLandscape(): Promise<Buffer> {
+  return readFixture("landscape.png"); // 100x50
+}
+
+describe("resize", () => {
+  test("resizes to specified width, auto-calculating height to preserve aspect ratio", async () => {
+    const result = await convert(await readLandscape(), {
+      format: "png",
+      width: 50,
+    });
+    expect(result.width).toBe(50);
+    expect(result.height).toBe(25);
+  });
+  test("fit contain (default): fits within bounds preserving aspect ratio", async () => {
+    // 100x50 into 40x40 box → 40x20 (width is limiting)
+    const result = await convert(await readLandscape(), {
+      format: "png",
+      width: 40,
+      height: 40,
+    });
+    expect(result.width).toBe(40);
+    expect(result.height).toBe(20);
+  });
+
+  test("fit cover: fills bounds preserving aspect ratio", async () => {
+    // 100x50 into 40x40 box → 80x40 (height is limiting, scales up to fill)
+    const result = await convert(await readLandscape(), {
+      format: "png",
+      width: 40,
+      height: 40,
+      fit: "cover",
+    });
+    expect(result.width).toBe(80);
+    expect(result.height).toBe(40);
+  });
+
+  test("fit fill: stretches to exact dimensions", async () => {
+    // 100x50 into 40x40 → exactly 40x40 (stretched)
+    const result = await convert(await readLandscape(), {
+      format: "png",
+      width: 40,
+      height: 40,
+      fit: "fill",
+    });
+    expect(result.width).toBe(40);
+    expect(result.height).toBe(40);
+  });
+
+  test("converts format and resizes in a single operation", async () => {
+    const result = await convert(await readLandscape(), {
+      format: "webp",
+      width: 50,
+    });
+    expect(result.width).toBe(50);
+    expect(result.height).toBe(25);
+    expectWebp(result.buffer);
+  });
+
+  test("resizes to specified height, auto-calculating width to preserve aspect ratio", async () => {
+    const result = await convert(await readLandscape(), {
+      format: "png",
+      height: 25,
+    });
+    expect(result.width).toBe(50);
+    expect(result.height).toBe(25);
+  });
+});
+
 describe("convert", () => {
   test("converts PNG to WebP", async () => {
     const result = await convert(await readFixture("sample.png"), { format: "webp" });

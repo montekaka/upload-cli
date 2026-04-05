@@ -2,9 +2,14 @@ import { Jimp } from "./jimp";
 
 export type Format = "png" | "jpeg" | "webp";
 
+export type Fit = "contain" | "cover" | "fill";
+
 export interface ConvertOptions {
   format: Format;
   quality?: number;
+  width?: number;
+  height?: number;
+  fit?: Fit;
 }
 
 export interface ConvertResult {
@@ -30,6 +35,25 @@ export async function convert(
     throw new Error(`Unsupported output format: ${options.format}`);
   }
   const image = await Jimp.fromBuffer(input);
+
+  if (options.width && !options.height) {
+    const ratio = options.width / image.width;
+    image.resize({ w: options.width, h: Math.round(image.height * ratio) });
+  } else if (options.height && !options.width) {
+    const ratio = options.height / image.height;
+    image.resize({ w: Math.round(image.width * ratio), h: options.height });
+  } else if (options.width && options.height) {
+    const fit = options.fit ?? "contain";
+    if (fit === "contain") {
+      const ratio = Math.min(options.width / image.width, options.height / image.height);
+      image.resize({ w: Math.round(image.width * ratio), h: Math.round(image.height * ratio) });
+    } else if (fit === "cover") {
+      const ratio = Math.max(options.width / image.width, options.height / image.height);
+      image.resize({ w: Math.round(image.width * ratio), h: Math.round(image.height * ratio) });
+    } else if (fit === "fill") {
+      image.resize({ w: options.width, h: options.height });
+    }
+  }
 
   const quality = options.quality ?? DEFAULT_QUALITY;
   const encodeOptions =
