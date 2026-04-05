@@ -5,9 +5,8 @@
 ```
 src/
 ├── index.ts       — CLI entry point, command definitions, input validation, output handling
-├── loader.ts      — Unified image loading (local files + remote URLs)
+├── loader.ts      — Unified image loading (local files + remote URLs, with injectable fetch)
 ├── processor.ts   — Pure image conversion/resize logic
-├── url.ts         — URL detection and remote image downloading (internal to loader)
 └── jimp.ts        — Jimp singleton (formats: JPEG, PNG, WebP + resize plugin)
 ```
 
@@ -18,7 +17,8 @@ src/
 - **`LoadResult`** — discriminated union:
   - `{ kind: "local", buffer, basename, sourceDir }` — local file with directory info
   - `{ kind: "remote", buffer, basename }` — remote URL
-- **`loadImage(input: string): Promise<LoadResult>`** — detects local vs remote, validates, and returns buffer + metadata
+- **`loadImage(input: string, fetcher?: FetchFn): Promise<LoadResult>`** — detects local vs remote, validates, and returns buffer + metadata. `fetcher` defaults to global `fetch`; inject a fake in tests to avoid real network calls.
+  - Internally handles URL detection, download, 50MB size guard, HTTP error normalisation, and basename extraction — all hidden from callers.
 
 ### processor.ts — the core module
 
@@ -27,12 +27,6 @@ src/
 - **`ConvertOptions`** — `{ format, quality?, width?, height?, fit? }`
 - **`ConvertResult`** — `{ buffer, width, height }`
 - **`convert(input: Buffer, options: ConvertOptions): Promise<ConvertResult>`** — the main processing function
-
-### url.ts — internal utilities (used by loader.ts)
-
-- **`isUrl(input: string): boolean`** — checks for `http://` or `https://` prefix
-- **`deriveFilenameFromUrl(url, format): string`** — extracts filename, swaps extension
-- **`downloadImage(url): Promise<Buffer>`** — fetches with 50MB cap
 
 ### jimp.ts
 
@@ -50,4 +44,4 @@ CLI input → validate args → load image (local file or remote URL)
   → write output file → print success message
 ```
 
-The architecture cleanly separates concerns: `index.ts` handles CLI/IO, `loader.ts` unifies image loading from any source behind a single function, `processor.ts` is a pure buffer-in/buffer-out converter, and `url.ts` provides internal network utilities.
+The architecture cleanly separates concerns: `index.ts` handles CLI/IO, `loader.ts` unifies image loading from any source behind a single function (hiding URL detection, download, and validation internally), and `processor.ts` is a pure buffer-in/buffer-out converter.
