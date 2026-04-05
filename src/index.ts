@@ -3,9 +3,7 @@ import { defineCommand, runMain } from "citty";
 import pc from "picocolors";
 import path from "path";
 import { convert, type Format, type Fit } from "./processor";
-import { isUrl, deriveFilenameFromUrl, downloadImage } from "./url";
-
-const SUPPORTED_FORMATS = ["png", "jpeg", "jpg", "webp"];
+import { loadImage } from "./loader";
 
 function normalizeFormat(fmt: string): Format {
   if (fmt === "jpg") return "jpeg";
@@ -59,7 +57,6 @@ const convertCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const remoteInput = isUrl(args.input);
     const toFormat = args.to.toLowerCase();
 
     // Validate output format
@@ -68,38 +65,14 @@ const convertCommand = defineCommand({
       process.exit(1);
     }
 
-    let inputBuffer: Buffer;
-    let inputBasename: string;
-
-    if (remoteInput) {
-      // Remote URL input
-      try {
-        inputBuffer = await downloadImage(args.input);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        await Bun.write(Bun.stderr, pc.red(`Error: ${message}\n`));
-        process.exit(1);
-      }
-      const format = normalizeFormat(toFormat);
-      inputBasename = deriveFilenameFromUrl(args.input, format === "jpeg" ? "jpg" : format);
-    } else {
-      // Local file input
-      const inputPath = path.resolve(args.input);
-
-      const inputFile = Bun.file(inputPath);
-      if (!(await inputFile.exists())) {
-        console.error(pc.red(`Error: File not found: ${inputPath}`));
-        process.exit(1);
-      }
-
-      const inputExt = path.extname(inputPath).slice(1).toLowerCase();
-      if (!SUPPORTED_FORMATS.includes(inputExt)) {
-        console.error(pc.red(`Error: Unsupported input format "${inputExt}". Supported: png, jpeg, jpg, webp`));
-        process.exit(1);
-      }
-
-      inputBuffer = Buffer.from(await inputFile.arrayBuffer());
-      inputBasename = path.basename(inputPath, path.extname(inputPath));
+    // Load image (local or remote)
+    let image: Awaited<ReturnType<typeof loadImage>>;
+    try {
+      image = await loadImage(args.input);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      await Bun.write(Bun.stderr, pc.red(`Error: ${message}\n`));
+      process.exit(1);
     }
 
     // Parse quality
@@ -144,23 +117,18 @@ const convertCommand = defineCommand({
 
     try {
       const format = normalizeFormat(toFormat);
+      const result = await convert(image.buffer, { format, quality, width, height, fit });
 
-      const result = await convert(inputBuffer, { format, quality, width, height, fit });
-
-      // Output path: use --output if provided, otherwise CWD with derived filename
+      // Output path: use --output if provided, otherwise derive from input
       let outputPath: string;
       if (args.output) {
         outputPath = path.resolve(args.output);
       } else {
         const outExt = format === "jpeg" ? "jpg" : format;
-        if (remoteInput) {
-          outputPath = path.resolve(`${inputBasename}`);
+        if (image.kind === "remote") {
+          outputPath = path.resolve(`${image.basename}.${outExt}`);
         } else {
-          const inputPath = path.resolve(args.input);
-          outputPath = path.join(
-            path.dirname(inputPath),
-            `${inputBasename}.${outExt}`
-          );
+          outputPath = path.join(image.sourceDir, `${image.basename}.${outExt}`);
         }
       }
 
