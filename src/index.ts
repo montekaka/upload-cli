@@ -3,6 +3,7 @@ import { defineCommand, runMain } from "citty";
 import pc from "picocolors";
 import path from "path";
 import { convert, type Format, type Fit } from "./processor";
+import { isUrl, deriveFilenameFromUrl, downloadImage } from "./url";
 
 const SUPPORTED_FORMATS = ["png", "jpeg", "jpg", "webp"];
 
@@ -58,7 +59,7 @@ const convertCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const inputPath = path.resolve(args.input);
+    const remoteInput = isUrl(args.input);
     const toFormat = args.to.toLowerCase();
 
     // Validate output format
@@ -67,18 +68,38 @@ const convertCommand = defineCommand({
       process.exit(1);
     }
 
-    // Validate input file exists
-    const inputFile = Bun.file(inputPath);
-    if (!(await inputFile.exists())) {
-      console.error(pc.red(`Error: File not found: ${inputPath}`));
-      process.exit(1);
-    }
+    let inputBuffer: Buffer;
+    let inputBasename: string;
 
-    // Validate input format
-    const inputExt = path.extname(inputPath).slice(1).toLowerCase();
-    if (!SUPPORTED_FORMATS.includes(inputExt)) {
-      console.error(pc.red(`Error: Unsupported input format "${inputExt}". Supported: png, jpeg, jpg, webp`));
-      process.exit(1);
+    if (remoteInput) {
+      // Remote URL input
+      try {
+        inputBuffer = await downloadImage(args.input);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        await Bun.write(Bun.stderr, pc.red(`Error: ${message}\n`));
+        process.exit(1);
+      }
+      const format = normalizeFormat(toFormat);
+      inputBasename = deriveFilenameFromUrl(args.input, format === "jpeg" ? "jpg" : format);
+    } else {
+      // Local file input
+      const inputPath = path.resolve(args.input);
+
+      const inputFile = Bun.file(inputPath);
+      if (!(await inputFile.exists())) {
+        console.error(pc.red(`Error: File not found: ${inputPath}`));
+        process.exit(1);
+      }
+
+      const inputExt = path.extname(inputPath).slice(1).toLowerCase();
+      if (!SUPPORTED_FORMATS.includes(inputExt)) {
+        console.error(pc.red(`Error: Unsupported input format "${inputExt}". Supported: png, jpeg, jpg, webp`));
+        process.exit(1);
+      }
+
+      inputBuffer = Buffer.from(await inputFile.arrayBuffer());
+      inputBasename = path.basename(inputPath, path.extname(inputPath));
     }
 
     // Parse quality
@@ -122,21 +143,25 @@ const convertCommand = defineCommand({
     }
 
     try {
-      const inputBuffer = Buffer.from(await inputFile.arrayBuffer());
       const format = normalizeFormat(toFormat);
 
       const result = await convert(inputBuffer, { format, quality, width, height, fit });
 
-      // Output path: use --output if provided, otherwise same directory with new extension
+      // Output path: use --output if provided, otherwise CWD with derived filename
       let outputPath: string;
       if (args.output) {
         outputPath = path.resolve(args.output);
       } else {
         const outExt = format === "jpeg" ? "jpg" : format;
-        outputPath = path.join(
-          path.dirname(inputPath),
-          `${path.basename(inputPath, path.extname(inputPath))}.${outExt}`
-        );
+        if (remoteInput) {
+          outputPath = path.resolve(`${inputBasename}`);
+        } else {
+          const inputPath = path.resolve(args.input);
+          outputPath = path.join(
+            path.dirname(inputPath),
+            `${inputBasename}.${outExt}`
+          );
+        }
       }
 
       // Check if output file already exists
