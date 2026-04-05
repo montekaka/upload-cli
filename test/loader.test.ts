@@ -1,37 +1,74 @@
-import { test, expect, describe, afterEach } from "bun:test";
-import net from "net";
+import { test, expect, describe } from "bun:test";
 import path from "path";
 import { loadImage } from "../src/loader";
 
 const FIXTURES = path.resolve("test/fixtures");
 
-let server: ReturnType<typeof Bun.serve> | null = null;
-
-function startFixtureServer() {
-  server = Bun.serve({
-    port: 0,
-    async fetch(req) {
-      const url = new URL(req.url);
-      const fixtureName = url.pathname.slice(1);
-      const fixturePath = path.join(FIXTURES, fixtureName);
-      const file = Bun.file(fixturePath);
-      if (await file.exists()) {
-        return new Response(file);
-      }
-      return new Response("Not found", { status: 404 });
-    },
-  });
-  return server;
+function makeResponse(body: ArrayBuffer, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(body, { status, headers });
 }
 
-afterEach(() => {
-  if (server) {
-    server.stop();
-    server = null;
-  }
+const TINY_IMAGE = new Uint8Array([1, 2, 3, 4]).buffer;
+
+describe("loadImage — remote (injected fetcher)", () => {
+  test("calls the injected fetcher when given a URL", async () => {
+    let calledWith: string | undefined;
+    const fakeFetch = async (url: string) => {
+      calledWith = url;
+      return makeResponse(TINY_IMAGE);
+    };
+
+    await loadImage("https://example.com/photo.png", fakeFetch);
+
+    expect(calledWith).toBe("https://example.com/photo.png");
+  });
+
+  test("returns kind=remote with buffer and basename extracted from URL path", async () => {
+    const fakeFetch = async (_url: string) => makeResponse(TINY_IMAGE);
+
+    const result = await loadImage("https://example.com/photos/sunset.png", fakeFetch);
+
+    expect(result.kind).toBe("remote");
+    expect(result.buffer).toBeInstanceOf(Buffer);
+    expect(result.buffer.length).toBe(TINY_IMAGE.byteLength);
+    expect(result.basename).toBe("sunset");
+  });
+
+  test("throws 'Failed to download' when fetcher throws a network error", async () => {
+    const fakeFetch = async (_url: string): Promise<Response> => {
+      throw new Error("network unavailable");
+    };
+
+    await expect(loadImage("https://example.com/photo.png", fakeFetch)).rejects.toThrow(
+      "Failed to download image from https://example.com/photo.png"
+    );
+  });
+
+  test("throws with HTTP status when fetcher returns a non-OK response", async () => {
+    const fakeFetch = async (_url: string) => makeResponse(TINY_IMAGE, 403);
+
+    await expect(loadImage("https://example.com/photo.png", fakeFetch)).rejects.toThrow(
+      "HTTP 403"
+    );
+  });
+
+  test("throws size limit error when content-length header exceeds 50MB", async () => {
+    const oversize = 51 * 1024 * 1024;
+    const fakeFetch = async (_url: string) =>
+      makeResponse(TINY_IMAGE, 200, { "content-length": String(oversize) });
+
+    await expect(loadImage("https://example.com/big.jpg", fakeFetch)).rejects.toThrow("50MB");
+  });
+
+  test("throws size limit error when response body exceeds 50MB (no content-length)", async () => {
+    const oversizeBody = new ArrayBuffer(51 * 1024 * 1024);
+    const fakeFetch = async (_url: string) => makeResponse(oversizeBody);
+
+    await expect(loadImage("https://example.com/big.jpg", fakeFetch)).rejects.toThrow("50MB");
+  });
 });
 
-describe("loadImage", () => {
+describe("loadImage — local file", () => {
   test("loads a local PNG file and returns buffer, basename, sourceDir", async () => {
     const input = path.join(FIXTURES, "sample.png");
     const result = await loadImage(input);
@@ -45,20 +82,8 @@ describe("loadImage", () => {
     }
   });
 
-  test("loads a remote URL and returns buffer, basename", async () => {
-    const srv = startFixtureServer();
-    const url = `http://localhost:${srv.port}/sample.png`;
-
-    const result = await loadImage(url);
-
-    expect(result.kind).toBe("remote");
-    expect(result.buffer).toBeInstanceOf(Buffer);
-    expect(result.buffer.length).toBeGreaterThan(0);
-    expect(result.basename).toBe("sample");
-  });
-
   test("throws on non-existent local file", async () => {
-    expect(loadImage("/nonexistent/file.png")).rejects.toThrow("File not found");
+    await expect(loadImage("/nonexistent/file.png")).rejects.toThrow("File not found");
   });
 
   test("throws on unsupported local file extension", async () => {
@@ -68,27 +93,6 @@ describe("loadImage", () => {
       await expect(loadImage(gifPath)).rejects.toThrow("Unsupported input format");
     } finally {
       await Bun.file(gifPath).unlink();
-    }
-  });
-
-  test("throws on remote download failure", async () => {
-    const url = "http://localhost:19999/nonexistent.png";
-    await expect(loadImage(url)).rejects.toThrow("Failed to download");
-  });
-
-  test("throws on remote file exceeding 50MB", async () => {
-    const tcpServer = net.createServer((socket) => {
-      const size = 51 * 1024 * 1024;
-      socket.write(`HTTP/1.1 200 OK\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n`);
-      socket.end("x");
-    });
-    await new Promise<void>((resolve) => tcpServer.listen(0, resolve));
-    const port = (tcpServer.address() as net.AddressInfo).port;
-
-    try {
-      await expect(loadImage(`http://localhost:${port}/big.jpg`)).rejects.toThrow("50MB");
-    } finally {
-      tcpServer.close();
     }
   });
 });

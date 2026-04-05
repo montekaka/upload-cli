@@ -5,8 +5,8 @@
 ```
 test/
 ├── processor.test.ts   — Unit tests for convert() function (19 tests)
+├── loader.test.ts      — Boundary tests for loadImage() — local and remote (9 tests)
 ├── cli.test.ts         — Integration tests via CLI subprocess (18 tests)
-├── url.test.ts         — Unit tests for URL utilities (7 tests)
 ├── create-fixtures.ts  — Script to generate test images
 └── fixtures/
     ├── sample.png      — 4x4 red image
@@ -17,11 +17,18 @@ test/
 
 ## Test Patterns
 
-### Unit tests (`processor.test.ts`, `url.test.ts`)
+### Unit tests (`processor.test.ts`)
 
 - Import functions directly and test in-process
 - Use magic byte checks (`expectPng`, `expectJpeg`, `expectWebp`) to verify output format
 - `readFixture(name)` helper loads fixture files
+
+### Boundary tests (`loader.test.ts`)
+
+- Test `loadImage()` through its public interface only — no access to internal helpers
+- Remote paths use an injected `FetchFn` (fake fetch) — no real HTTP servers or sockets
+- Local paths use real fixture files on disk
+- Covers: successful load, basename extraction, network errors, HTTP status errors, 50MB size guard (header and body), missing file, unsupported extension
 
 ### Integration tests (`cli.test.ts`)
 
