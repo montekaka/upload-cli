@@ -177,4 +177,32 @@ describe("convert", () => {
       convert(garbage, { format: "png" })
     ).rejects.toThrow();
   });
+
+  test("rejects negative width", async () => {
+    const input = await readFixture("sample.png");
+    await expect(
+      convert(input, { format: "png", width: -1 })
+    ).rejects.toThrow("Invalid dimensions");
+  });
+
+  test("rejects negative height", async () => {
+    const input = await readFixture("sample.png");
+    await expect(
+      convert(input, { format: "png", height: -1 })
+    ).rejects.toThrow("Invalid dimensions");
+  });
+
+  test("rejects zero width", async () => {
+    const input = await readFixture("sample.png");
+    await expect(
+      convert(input, { format: "png", width: 0 })
+    ).rejects.toThrow("Invalid dimensions");
+  });
+
+  test("rejects zero height", async () => {
+    const input = await readFixture("sample.png");
+    await expect(
+      convert(input, { format: "png", height: 0 })
+    ).rejects.toThrow("Invalid dimensions");
+  });
 });

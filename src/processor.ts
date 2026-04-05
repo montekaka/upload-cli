@@ -34,6 +34,13 @@ export async function convert(
   if (!mime) {
     throw new Error(`Unsupported output format: ${options.format}`);
   }
+
+  if (options.width !== undefined && options.width <= 0) {
+    throw new Error("Invalid dimensions: width must be a positive number");
+  }
+  if (options.height !== undefined && options.height <= 0) {
+    throw new Error("Invalid dimensions: height must be a positive number");
+  }
   await ensureWebPReady();
   const image = await Jimp.fromBuffer(input);
 
