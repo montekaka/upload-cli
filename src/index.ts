@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { defineCommand, runMain } from "citty";
 import pc from "picocolors";
-import path from "path";
 import { convert, type Format, type Fit } from "./processor";
 import { loadImage } from "./loader";
+import { resolveOutputPath } from "./output-path";
 
 function normalizeFormat(fmt: string): Format {
   if (fmt === "jpg") return "jpeg";
@@ -119,18 +119,7 @@ const convertCommand = defineCommand({
       const format = normalizeFormat(toFormat);
       const result = await convert(image.buffer, { format, quality, width, height, fit });
 
-      // Output path: use --output if provided, otherwise derive from input
-      let outputPath: string;
-      if (args.output) {
-        outputPath = path.resolve(args.output);
-      } else {
-        const outExt = format === "jpeg" ? "jpg" : format;
-        if (image.kind === "remote") {
-          outputPath = path.resolve(`${image.basename}.${outExt}`);
-        } else {
-          outputPath = path.join(image.sourceDir, `${image.basename}.${outExt}`);
-        }
-      }
+      const outputPath = resolveOutputPath(image, format, { output: args.output });
 
       // Check if output file already exists
       if (!args.force && await Bun.file(outputPath).exists()) {
