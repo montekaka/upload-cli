@@ -102,7 +102,7 @@ describe("CLI convert", () => {
 
   test("resizes with --width flag and shows new dimensions", async () => {
     const input = await copyFixture("landscape.png");
-    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--width", "50");
+    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--width", "50", "--force");
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain("50x25");
@@ -111,7 +111,7 @@ describe("CLI convert", () => {
 
   test("resizes with --height flag", async () => {
     const input = await copyFixture("landscape.png");
-    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--height", "25");
+    const { exitCode, stdout } = await run("convert", input, "--to", "png", "--height", "25", "--force");
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain("50x25");
@@ -126,6 +126,69 @@ describe("CLI convert", () => {
 
     const outputPath = path.join(TMP, "landscape.webp");
     expect(await Bun.file(outputPath).exists()).toBe(true);
+  });
+
+  test("--output flag writes to specified path", async () => {
+    const input = await copyFixture("sample.png");
+    const outputPath = path.join(TMP, "subdir", "custom.webp");
+    await fs.mkdir(path.join(TMP, "subdir"), { recursive: true });
+
+    const { exitCode, stdout } = await run("convert", input, "--to", "webp", "--output", outputPath);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Saved to");
+    expect(stdout).toContain("custom.webp");
+    expect(await Bun.file(outputPath).exists()).toBe(true);
+  });
+
+  test("errors if output file already exists", async () => {
+    const input = await copyFixture("sample.png");
+    const outputPath = path.join(TMP, "sample.webp");
+    await Bun.write(outputPath, "existing content");
+
+    const { exitCode, stderr } = await run("convert", input, "--to", "webp");
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("already exists");
+  });
+
+  test("--force allows overwriting existing output file", async () => {
+    const input = await copyFixture("sample.png");
+    const outputPath = path.join(TMP, "sample.webp");
+    await Bun.write(outputPath, "existing content");
+
+    const { exitCode, stdout } = await run("convert", input, "--to", "webp", "--force");
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Saved to");
+
+    // Verify the file was actually overwritten (not still "existing content")
+    const buf = Buffer.from(await Bun.file(outputPath).arrayBuffer());
+    expect(buf.toString("ascii", 0, 4)).toBe("RIFF");
+  });
+
+  test("errors on negative --width", async () => {
+    const input = await copyFixture("sample.png");
+    const { exitCode, stderr } = await run("convert", input, "--to", "webp", "--width", "-5");
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Width must be a positive integer");
+  });
+
+  test("errors on negative --height", async () => {
+    const input = await copyFixture("sample.png");
+    const { exitCode, stderr } = await run("convert", input, "--to", "webp", "--height", "-10");
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Height must be a positive integer");
+  });
+
+  test("errors on invalid --fit value", async () => {
+    const input = await copyFixture("sample.png");
+    const { exitCode, stderr } = await run("convert", input, "--to", "webp", "--width", "10", "--height", "10", "--fit", "stretch");
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("Unsupported fit mode");
   });
 
   test("errors on unsupported input format", async () => {

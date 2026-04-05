@@ -48,6 +48,14 @@ const convertCommand = defineCommand({
       type: "string",
       description: "Fit mode when both width and height are given (contain, cover, fill; default: contain)",
     },
+    output: {
+      type: "string",
+      description: "Output file path (default: same directory as input with new extension)",
+    },
+    force: {
+      type: "boolean",
+      description: "Overwrite output file if it already exists",
+    },
   },
   async run({ args }) {
     const inputPath = path.resolve(args.input);
@@ -119,12 +127,23 @@ const convertCommand = defineCommand({
 
       const result = await convert(inputBuffer, { format, quality, width, height, fit });
 
-      // Output path: same directory, new extension
-      const outExt = format === "jpeg" ? "jpg" : format;
-      const outputPath = path.join(
-        path.dirname(inputPath),
-        `${path.basename(inputPath, path.extname(inputPath))}.${outExt}`
-      );
+      // Output path: use --output if provided, otherwise same directory with new extension
+      let outputPath: string;
+      if (args.output) {
+        outputPath = path.resolve(args.output);
+      } else {
+        const outExt = format === "jpeg" ? "jpg" : format;
+        outputPath = path.join(
+          path.dirname(inputPath),
+          `${path.basename(inputPath, path.extname(inputPath))}.${outExt}`
+        );
+      }
+
+      // Check if output file already exists
+      if (!args.force && await Bun.file(outputPath).exists()) {
+        console.error(pc.red(`Error: Output file already exists: ${outputPath}. Use --force to overwrite.`));
+        process.exit(1);
+      }
 
       await Bun.write(outputPath, result.buffer);
 
