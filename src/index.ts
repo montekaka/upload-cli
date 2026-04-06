@@ -114,7 +114,14 @@ const convertCommand = defineCommand({
     try {
       const result = await convert(image.buffer, { format, quality, width, height, fit });
 
-      const outputPath = resolveOutputPath(image, format, { output: args.output });
+      const outputPath = resolveOutputPath(
+        image.basename,
+        format,
+        {
+          output: args.output,
+          sourceDir: image.kind === "local" ? image.sourceDir : undefined,
+        }
+      );
 
       // Check if output file already exists
       if (!args.force && await Bun.file(outputPath).exists()) {
