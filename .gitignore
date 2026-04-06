@@ -1,6 +1,5 @@
 .DS_Store
 .cursor
-.claude
 node_modules
 test/tmp
 bun.lock
