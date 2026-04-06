@@ -12,7 +12,9 @@
   ],
   "scripts": {
     "lint": "eslint .",
-    "compile": "bun build --compile src/index.ts --outfile dist/upload-cli"
+    "build": "bun build --compile src/index.ts --outfile dist/upload-cli",
+    "compile": "bun run build",
+    "test:binary": "bun test test/binary.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
