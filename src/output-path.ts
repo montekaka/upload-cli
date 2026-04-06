@@ -1,11 +1,10 @@
 import path from "path";
-import type { LoadResult } from "./loader";
 import type { Format } from "./formats";
 
 export function resolveOutputPath(
-  image: LoadResult,
+  basename: string,
   format: Format,
-  options?: { output?: string; cwd?: string }
+  options?: { output?: string; sourceDir?: string; cwd?: string }
 ): string {
   if (options?.output) {
     const cwd = options.cwd ?? process.cwd();
@@ -13,11 +12,6 @@ export function resolveOutputPath(
   }
 
   const ext = format === "jpeg" ? "jpg" : format;
-
-  if (image.kind === "remote") {
-    const cwd = options?.cwd ?? process.cwd();
-    return path.join(cwd, `${image.basename}.${ext}`);
-  }
-
-  return path.join(image.sourceDir, `${image.basename}.${ext}`);
+  const base = options?.sourceDir ?? options?.cwd ?? process.cwd();
+  return path.join(base, `${basename}.${ext}`);
 }

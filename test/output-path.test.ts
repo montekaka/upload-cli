@@ -1,43 +1,29 @@
 import { describe, test, expect } from "bun:test";
 import { resolveOutputPath } from "../src/output-path";
-import type { LoadResult } from "../src/loader";
-
-const localImage: LoadResult = {
-  kind: "local",
-  buffer: Buffer.alloc(0),
-  basename: "photo",
-  sourceDir: "/home/user/images",
-};
-
-const remoteImage: LoadResult = {
-  kind: "remote",
-  buffer: Buffer.alloc(0),
-  basename: "photo",
-};
 
 describe("resolveOutputPath", () => {
-  test("local image saves next to source file with new extension", () => {
-    const result = resolveOutputPath(localImage, "png");
-    expect(result).toBe("/home/user/images/photo.png");
+  test("local source: resolves to sourceDir/basename.ext", () => {
+    const result = resolveOutputPath("photo", "webp", { sourceDir: "/home/user/pics" });
+    expect(result).toBe("/home/user/pics/photo.webp");
   });
 
-  test("remote image saves in CWD with new extension", () => {
-    const result = resolveOutputPath(remoteImage, "png", { cwd: "/tmp/work" });
-    expect(result).toBe("/tmp/work/photo.png");
-  });
-
-  test("--output override resolves to an absolute path", () => {
-    const result = resolveOutputPath(localImage, "png", { output: "out/converted.png", cwd: "/tmp/work" });
-    expect(result).toBe("/tmp/work/out/converted.png");
+  test("remote source: falls back to cwd when no sourceDir", () => {
+    const result = resolveOutputPath("photo", "webp", { cwd: "/tmp/work" });
+    expect(result).toBe("/tmp/work/photo.webp");
   });
 
   test("jpeg format uses .jpg extension", () => {
-    const result = resolveOutputPath(localImage, "jpeg");
-    expect(result).toBe("/home/user/images/photo.jpg");
+    const result = resolveOutputPath("photo", "jpeg", { sourceDir: "/tmp" });
+    expect(result).toBe("/tmp/photo.jpg");
   });
 
-  test("png and webp formats use their own extension", () => {
-    expect(resolveOutputPath(localImage, "png")).toBe("/home/user/images/photo.png");
-    expect(resolveOutputPath(localImage, "webp")).toBe("/home/user/images/photo.webp");
+  test("explicit --output override resolves to absolute path", () => {
+    const result = resolveOutputPath("photo", "png", { output: "out/result.png", cwd: "/tmp/work" });
+    expect(result).toBe("/tmp/work/out/result.png");
+  });
+
+  test("cwd option used when no sourceDir", () => {
+    const result = resolveOutputPath("photo", "png", { cwd: "/custom" });
+    expect(result).toBe("/custom/photo.png");
   });
 });
