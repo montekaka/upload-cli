@@ -4,11 +4,13 @@
 
 ```
 test/
-├── processor.test.ts   — Unit tests for convert() function (22 tests)
-├── loader.test.ts      — Boundary tests for loadImage() — local and remote (9 tests)
-├── output-path.test.ts — Unit tests for resolveOutputPath() (5 tests)
-├── cli.test.ts         — Integration tests via CLI subprocess (20 tests)
-├── binary.test.ts      — Smoke tests against the compiled standalone binary (5 tests)
+├── processor.test.ts   — Unit tests for convert() function (23 tests)
+├── loader.test.ts      — Boundary tests for loadImage() — local and remote (11 tests)
+├── output-path.test.ts — Unit tests for resolveOutputPath() (6 tests)
+├── cli.test.ts         — Integration tests via CLI subprocess (22 tests)
+├── binary.test.ts      — Smoke tests against the compiled standalone binary (6 tests)
+├── formats.test.ts     — Unit tests for the format registry (21 tests)
+├── jimp.test.ts        — Unit tests for WebP WASM initialisation (2 tests)
 ├── create-fixtures.ts  — Script to generate test images
 └── fixtures/
     ├── sample.png      — 4x4 red image
@@ -52,6 +54,17 @@ test/
 - Uses a separate `test/tmp-binary/` directory, cleaned up in `afterEach`
 - Covers help output, a core conversion, a resize, and an error case — confirms the binary works end-to-end with embedded WASM assets
 
+### Unit tests (`formats.test.ts`)
+
+- Test the format registry functions directly with no I/O or image processing
+- Covers `parseFormat` (including `"jpg"` → `"jpeg"` normalisation and case-sensitivity), `isSupportedExtension`, `mimeType`, and the `FORMATS`/`INPUT_EXTENSIONS` constants
+- Verifies that `FORMATS` contains only canonical names (no `"jpg"` alias) and exactly 3 entries
+
+### Unit tests (`jimp.test.ts`)
+
+- Verify that `initWebP()` resolves without error
+- Verify that calling `initWebP()` a second time is safe (memoized — second call completes immediately without re-initialising WASM)
+
 ## Test Categories
 
 - Format conversion (all 6 pairwise combinations: PNG↔JPEG, PNG↔WebP, JPEG↔WebP)
@@ -60,4 +73,6 @@ test/
 - Error handling (bad format, missing file, invalid/negative dimensions, invalid fit)
 - Output path (`--output` flag, local vs remote defaults, `.jpg` extension for `jpeg`, file conflict, `--force`)
 - Remote URLs (success, 50MB limit via header and body, network failure, `--output` with remote)
+- Format registry (`parseFormat` aliasing, `isSupportedExtension`, `mimeType`, constant shape)
+- WebP WASM init (`initWebP` success, idempotency)
 - Standalone binary (help, convert, resize, error — verifies embedded WASM works outside dev environment)
