@@ -84,7 +84,7 @@ jobs:
 
           # Claude CLI arguments
           claude_args: |
-            --model "claude-opus-4-5"
+            --model "claude-sonnet-4-6"
             --max-turns 100
             --allowedTools "Bash(git:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh repo:*),Bash(npm:*),Bash(npx:*),Bash(bun run:*),Bash(bun add:*),Bash(bun --version),Edit,Write,Read,Glob,Grep,LS,WebSearch,WebFetch"
 
