@@ -5,6 +5,7 @@
 ```
 src/
 ├── index.ts        — CLI entry point, command definitions, input validation, output handling
+├── formats.ts      — Format registry: Format type, FORMATS/INPUT_EXTENSIONS constants, parseFormat/isSupportedExtension/mimeType helpers
 ├── loader.ts       — Unified image loading (local files + remote URLs, with injectable fetch)
 ├── processor.ts    — Pure image conversion/resize logic (buffer in, buffer out)
 ├── output-path.ts  — Output file path resolution (--output flag, remote vs local defaults)
@@ -12,6 +13,15 @@ src/
 ```
 
 ## Key Interfaces
+
+### formats.ts — format registry
+
+- **`Format`** = `"png" | "jpeg" | "webp"`
+- **`FORMATS`** — read-only array of all canonical format names (no `"jpg"` alias)
+- **`INPUT_EXTENSIONS`** — read-only array of all accepted input extensions (`"png" | "jpeg" | "jpg" | "webp"`)
+- **`parseFormat(raw: string): Format | null`** — normalises `"jpg"` → `"jpeg"`, returns `null` for unsupported values. Case-sensitive.
+- **`isSupportedExtension(ext: string): boolean`** — checks against `INPUT_EXTENSIONS` (includes `"jpg"` alias)
+- **`mimeType(format: Format): string`** — maps format to MIME type (`"image/png"`, `"image/jpeg"`, `"image/webp"`)
 
 ### loader.ts — unified image loading
 
@@ -23,7 +33,7 @@ src/
 
 ### processor.ts — the core module
 
-- **`Format`** = `"png" | "jpeg" | "webp"`
+- **`Format`** — re-exported from `formats.ts`
 - **`Fit`** = `"contain" | "cover" | "fill"`
 - **`ConvertOptions`** — `{ format, quality?, width?, height?, fit? }`
 - **`ConvertResult`** — `{ buffer, width, height }`
@@ -38,7 +48,7 @@ src/
 
 ### jimp.ts
 
-Exports a configured `Jimp` class (JPEG, PNG formats + resize plugin) and a custom WebP plugin backed by `@jsquash/webp`. WebP WASM binaries are embedded at compile time via Bun's `with { type: "file" }` import assertions and pre-initialised once via `ensureWebPReady()` — this bypasses Emscripten's `locateFile` path resolution which fails inside a standalone binary.
+Exports a configured `Jimp` class (JPEG, PNG formats + resize plugin) and a custom WebP plugin backed by `@jsquash/webp`. WebP WASM binaries are embedded at compile time via Bun's `with { type: "file" }` import assertions and pre-initialised once via `initWebP()` — this bypasses Emscripten's `locateFile` path resolution which fails inside a standalone binary. `initWebP()` is called eagerly at CLI startup (in `index.ts`) rather than lazily on first use, so WASM is always ready before any image is processed.
 
 ## CLI Command
 
