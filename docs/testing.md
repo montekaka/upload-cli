@@ -4,12 +4,13 @@
 
 ```
 test/
-├── processor.test.ts   — Unit tests for convert() function (23 tests)
-├── loader.test.ts      — Boundary tests for loadImage() — local and remote (11 tests)
-├── output-path.test.ts — Unit tests for resolveOutputPath() (6 tests)
-├── cli.test.ts         — Integration tests via CLI subprocess (22 tests)
-├── binary.test.ts      — Smoke tests against the compiled standalone binary (6 tests)
-├── formats.test.ts     — Unit tests for the format registry (21 tests)
+├── processor.test.ts   — Unit tests for convert() function (16 tests)
+├── loader.test.ts      — Boundary tests for loadImage() — local and remote (9 tests)
+├── resize.test.ts      — Unit tests for calculateResizeDimensions() (8 tests)
+├── output-path.test.ts — Unit tests for resolveOutputPath() (5 tests)
+├── cli.test.ts         — Integration tests via CLI subprocess (20 tests)
+├── binary.test.ts      — Smoke tests against the compiled standalone binary (5 tests)
+├── formats.test.ts     — Unit tests for the format registry (19 tests)
 ├── jimp.test.ts        — Unit tests for WebP WASM initialisation (2 tests)
 ├── create-fixtures.ts  — Script to generate test images
 └── fixtures/
@@ -29,8 +30,13 @@ test/
 
 ### Unit tests (`output-path.test.ts`)
 
-- Call `resolveOutputPath()` directly with synthetic `LoadResult` values — no real filesystem access
+- Call `resolveOutputPath()` with plain string primitives (`basename`, `sourceDir`) — no `LoadResult` or filesystem access
 - Covers: local saves next to source, remote saves in cwd, `--output` override, `.jpg` extension for `jpeg` format
+
+### Unit tests (`resize.test.ts`)
+
+- Call `calculateResizeDimensions()` directly with synthetic dimensions — no Jimp, no image buffers
+- Covers: no-op (no dimensions), width-only, height-only, both dimensions with each of the three fit modes (`contain`, `cover`, `fill`), and integer rounding edge cases
 
 ### Boundary tests (`loader.test.ts`)
 
@@ -71,6 +77,7 @@ test/
 - Resize (width-only, height-only, both + all 3 fit modes)
 - Quality (JPEG and WebP affected; PNG ignored; default 80)
 - Error handling (bad format, missing file, invalid/negative dimensions, invalid fit)
+- Resize dimensions (`calculateResizeDimensions` — all fit modes, aspect-ratio math, rounding)
 - Output path (`--output` flag, local vs remote defaults, `.jpg` extension for `jpeg`, file conflict, `--force`)
 - Remote URLs (success, 50MB limit via header and body, network failure, `--output` with remote)
 - Format registry (`parseFormat` aliasing, `isSupportedExtension`, `mimeType`, constant shape)
