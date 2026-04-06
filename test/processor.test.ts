@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { convert, type Format } from "../src/processor";
+import { convert } from "../src/processor";
 
 const FIXTURES = "test/fixtures";
 
