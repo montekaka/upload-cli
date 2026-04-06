@@ -21,6 +21,12 @@ import decPath from "../node_modules/@jsquash/webp/codec/dec/webp_dec.wasm" with
 
 let webpReady: Promise<void> | null = null;
 
+function assertReady(): void {
+  if (!webpReady) {
+    throw new Error("WebP WASM not initialized — call initWebP() before processing images");
+  }
+}
+
 /**
  * Pre-initialise the @jsquash/webp encoder/decoder from embedded WASM bytes.
  *
@@ -34,7 +40,7 @@ let webpReady: Promise<void> | null = null;
  * (no args) before every encode, which overrides our pre-initialised module.
  * Instead, we register our own minimal Jimp WebP plugin below.
  */
-export function ensureWebPReady(): Promise<void> {
+export function initWebP(): Promise<void> {
   if (!webpReady) {
     webpReady = (async () => {
       const isSIMD = await simd();
@@ -63,7 +69,7 @@ export function ensureWebPReady(): Promise<void> {
  * Minimal Jimp WebP format plugin backed by @jsquash/webp.
  *
  * Unlike @jimp/wasm-webp this plugin does NOT call initEncoder/initDecoder
- * before each operation — it relies on ensureWebPReady() having already set
+ * before each operation — it relies on initWebP() having already set
  * up the module. encode() and decode() from @jsquash/webp respect the
  * already-initialised emscriptenModule without re-triggering WASM loading.
  */
@@ -75,6 +81,7 @@ function webp() {
       bitmap: { data: Buffer; width: number; height: number },
       options: { quality?: number } = {}
     ) => {
+      assertReady();
       const arrayBuffer = await encodeWebP(
         {
           data: new Uint8ClampedArray(bitmap.data),
@@ -87,6 +94,7 @@ function webp() {
       return Buffer.from(arrayBuffer);
     },
     decode: async (data: Buffer) => {
+      assertReady();
       const result = await decodeWebP(data);
       return {
         data: Buffer.from(result.data),

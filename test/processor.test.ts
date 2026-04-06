@@ -1,5 +1,10 @@
-import { test, expect, describe } from "bun:test";
+import { test, expect, describe, beforeAll } from "bun:test";
 import { convert } from "../src/processor";
+import { initWebP } from "../src/jimp";
+
+beforeAll(async () => {
+  await initWebP();
+});
 
 const FIXTURES = "test/fixtures";
 
