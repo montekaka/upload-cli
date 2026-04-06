@@ -36,7 +36,9 @@ export async function convert(
   }
   const image = await Jimp.fromBuffer(input);
 
-  image.resize(calculateResizeDimensions(image.width, image.height, options));
+  if (options.width !== undefined || options.height !== undefined) {
+    image.resize(calculateResizeDimensions(image.width, image.height, options));
+  }
 
   const quality = options.quality ?? DEFAULT_QUALITY;
   const encodeOptions =
