@@ -5,6 +5,7 @@ import { convert, type Fit } from "./processor";
 import { loadImage } from "./loader";
 import { resolveOutputPath } from "./output-path";
 import { parseFormat, FORMATS } from "./formats";
+import { initWebP } from "./jimp";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -145,4 +146,5 @@ const main = defineCommand({
   },
 });
 
+await initWebP();
 await runMain(main);

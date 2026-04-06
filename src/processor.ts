@@ -1,4 +1,4 @@
-import { Jimp, ensureWebPReady } from "./jimp";
+import { Jimp } from "./jimp";
 import { mimeType, type Format } from "./formats";
 
 export type { Format } from "./formats";
@@ -33,7 +33,6 @@ export async function convert(
   if (options.height !== undefined && options.height <= 0) {
     throw new Error("Invalid dimensions: height must be a positive number");
   }
-  await ensureWebPReady();
   const image = await Jimp.fromBuffer(input);
 
   if (options.width && !options.height) {
