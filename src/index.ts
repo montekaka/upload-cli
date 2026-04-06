@@ -6,6 +6,7 @@ import { loadImage } from "./loader";
 import { resolveOutputPath } from "./output-path";
 import { parseFormat, FORMATS } from "./formats";
 import { initWebP } from "./jimp";
+import packageJson from "../package.json";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -145,7 +146,7 @@ const convertCommand = defineCommand({
 const main = defineCommand({
   meta: {
     name: "upload-cli",
-    version: "0.1.0",
+    version: packageJson.version,
     description: "Fast CLI tool for image format conversion",
   },
   subCommands: {

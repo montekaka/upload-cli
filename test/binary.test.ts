@@ -1,6 +1,7 @@
 import { test, expect, describe, beforeAll, afterEach } from "bun:test";
 import fs from "fs/promises";
 import path from "path";
+import packageJson from "../package.json";
 
 const BINARY = path.resolve("dist/upload-cli");
 const FIXTURES = path.resolve("test/fixtures");
@@ -51,6 +52,13 @@ beforeAll(async () => {
 });
 
 describe("standalone binary: help", () => {
+  test("--version exits 0 and prints package version", async () => {
+    const { exitCode, stdout } = await run("--version");
+
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe(packageJson.version);
+  });
+
   test("--help exits 0 and prints usage", async () => {
     const { exitCode, stdout } = await run("--help");
 
