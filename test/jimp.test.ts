@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeAll } from "bun:test";
+import { test, expect, describe } from "bun:test";
 import { initWebP } from "../src/jimp";
 
 describe("initWebP", () => {
