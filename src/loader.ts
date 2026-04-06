@@ -1,6 +1,5 @@
 import path from "path";
-
-const SUPPORTED_FORMATS = ["png", "jpeg", "jpg", "webp"];
+import { isSupportedExtension, INPUT_EXTENSIONS } from "./formats";
 const MAX_DOWNLOAD_SIZE = 50 * 1024 * 1024; // 50MB
 
 type LocalResult = { kind: "local"; buffer: Buffer; basename: string; sourceDir: string };
@@ -56,8 +55,8 @@ export async function loadImage(input: string, fetcher: FetchFn = fetch): Promis
   }
 
   const ext = path.extname(inputPath).slice(1).toLowerCase();
-  if (!SUPPORTED_FORMATS.includes(ext)) {
-    throw new Error(`Unsupported input format "${ext}". Supported: png, jpeg, jpg, webp`);
+  if (!isSupportedExtension(ext)) {
+    throw new Error(`Unsupported input format "${ext}". Supported: ${INPUT_EXTENSIONS.join(", ")}`);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

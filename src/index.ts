@@ -1,14 +1,10 @@
 #!/usr/bin/env bun
 import { defineCommand, runMain } from "citty";
 import pc from "picocolors";
-import { convert, type Format, type Fit } from "./processor";
+import { convert, type Fit } from "./processor";
 import { loadImage } from "./loader";
 import { resolveOutputPath } from "./output-path";
-
-function normalizeFormat(fmt: string): Format {
-  if (fmt === "jpg") return "jpeg";
-  return fmt as Format;
-}
+import { parseFormat, FORMATS } from "./formats";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -57,11 +53,10 @@ const convertCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const toFormat = args.to.toLowerCase();
-
-    // Validate output format
-    if (!["png", "jpeg", "jpg", "webp"].includes(toFormat)) {
-      console.error(pc.red(`Error: Unsupported output format "${args.to}". Supported: png, jpeg, webp`));
+    // Validate and normalize output format
+    const format = parseFormat(args.to.toLowerCase());
+    if (!format) {
+      console.error(pc.red(`Error: Unsupported output format "${args.to}". Supported: ${FORMATS.join(", ")}`));
       process.exit(1);
     }
 
@@ -116,7 +111,6 @@ const convertCommand = defineCommand({
     }
 
     try {
-      const format = normalizeFormat(toFormat);
       const result = await convert(image.buffer, { format, quality, width, height, fit });
 
       const outputPath = resolveOutputPath(image, format, { output: args.output });
