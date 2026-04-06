@@ -1,6 +1,7 @@
 import { Jimp, ensureWebPReady } from "./jimp";
+import { mimeType, type Format } from "./formats";
 
-export type Format = "png" | "jpeg" | "webp";
+export type { Format } from "./formats";
 
 export type Fit = "contain" | "cover" | "fill";
 
@@ -18,22 +19,13 @@ export interface ConvertResult {
   height: number;
 }
 
-const MIME_MAP: Record<Format, string> = {
-  png: "image/png",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-};
-
 const DEFAULT_QUALITY = 80;
 
 export async function convert(
   input: Buffer,
   options: ConvertOptions
 ): Promise<ConvertResult> {
-  const mime = MIME_MAP[options.format];
-  if (!mime) {
-    throw new Error(`Unsupported output format: ${options.format}`);
-  }
+  const mime = mimeType(options.format);
 
   if (options.width !== undefined && options.width <= 0) {
     throw new Error("Invalid dimensions: width must be a positive number");

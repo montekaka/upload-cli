@@ -1,6 +1,6 @@
 import path from "path";
 import type { LoadResult } from "./loader";
-import type { Format } from "./processor";
+import type { Format } from "./formats";
 
 export function resolveOutputPath(
   image: LoadResult,

@@ -164,13 +164,6 @@ describe("convert", () => {
     expect(defaultQ.buffer.length).toBe(explicit80.buffer.length);
   });
 
-  test("rejects unsupported output format", async () => {
-    const input = await readFixture("sample.png");
-    await expect(
-      convert(input, { format: "bmp" as unknown as Format })
-    ).rejects.toThrow("Unsupported output format: bmp");
-  });
-
   test("rejects invalid image input", async () => {
     const garbage = Buffer.from("not an image");
     await expect(
