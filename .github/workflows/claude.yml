@@ -48,6 +48,7 @@ jobs:
           # Custom prompt with strict formatting rules
           prompt: |
             **IMPORTANT - WHEN WORKING ON ISSUES:**
+            Always use /tdd skill to work on issue
             After you finish implementing the code changes and committing them, create a pull request:
             ```
             gh pr create --title "Your descriptive title" --body "## Summary
